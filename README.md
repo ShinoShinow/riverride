@@ -1,2 +1,5 @@
 # riverride
-my first programer with rust
+## my first programer with rust
+
+run (./riverride) for run the gmae
+
