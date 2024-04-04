@@ -14,7 +14,6 @@ struct World {
     next_right: u16,
     next_left: u16
 }
-
 fn draw(sc: &mut Stdout,worldr: &mut World) -> std::io::Result<()> {
     sc.queue(Clear(crossterm::terminal::ClearType::All))?;
     sc.flush()?;
@@ -37,7 +36,6 @@ fn draw(sc: &mut Stdout,worldr: &mut World) -> std::io::Result<()> {
 
     Ok(())
 }
-
 fn physics(mut world: World) -> std::io::Result<World> {
     //check if player die
     if world.player_c <= world.map[world.player_l as usize].0 {
