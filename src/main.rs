@@ -28,8 +28,12 @@ struct World {
     next_right: u16,
     next_left: u16,
     enemy : Vec<Enemy>,
-    bullets: Vec<Bullet>
+    bullets: Vec<Bullet>,
+    score: u16,
+    fuel: u16,
+    timer: u8
 }
+
 fn draw(sc: &mut Stdout,world: &mut World) -> std::io::Result<()> {
     sc.queue(Clear(crossterm::terminal::ClearType::All))?;
     sc.flush()?;
@@ -43,6 +47,13 @@ fn draw(sc: &mut Stdout,world: &mut World) -> std::io::Result<()> {
         sc.queue(Print("+".repeat(usizen as usize)))?;
         sc.flush()?;
     }
+
+    //draw score and fuel
+    sc.queue(MoveTo(2,2))?;
+    sc.queue(Print(format!("Score: {}", world.score)))?;
+    sc.queue(MoveTo(2,3))?;
+    sc.queue(Print(format!("Fuel: {}", world.fuel)))?;
+    sc.flush()?;
 
     //draw the player
     sc.queue(MoveTo(world.player_c,world.player_l))?;
@@ -76,6 +87,9 @@ fn physics(mut world: World) -> std::io::Result<World> {
     if world.player_c >= world.map[world.player_l as usize].1 - 1 {
         world.status = PlayerStatus::Dead;
     }
+    if world.fuel == 0 {
+        world.status = PlayerStatus::Dead;
+    }
 
     //check enemy hit somthing
     for i in (0 .. world.enemy.len()).rev() {
@@ -87,12 +101,14 @@ fn physics(mut world: World) -> std::io::Result<World> {
                 if world.enemy[i].line == world.bullets[j].l || world.enemy[i].line == world.bullets[j].l + 1{
                     if world.enemy[i].cols == world.bullets[j].c {
                         world.enemy.remove(i);
+                        world.score += 10;
                     }                
                 }
             }else {
                 if (world.enemy[i].line == world.bullets[j].l || world.enemy[i].line == world.bullets[j].l - 1) || world.enemy[i].line == world.bullets[j].l + 1{
                     if world.enemy[i].cols == world.bullets[j].c {
                         world.enemy.remove(i);
+                        world.score += 10;
                     }                
                 }
             }
@@ -163,9 +179,12 @@ fn physics(mut world: World) -> std::io::Result<World> {
             } 
         }
     }
-
-    // check enemy dead
-
+    // fuel consumption
+    if world.timer == 20 {
+        world.fuel -= 1;
+        world.timer = 0;
+    }
+    world.timer += 1;
     Ok(world)
 }
 
@@ -188,7 +207,10 @@ fn main() -> std::io::Result<()> {
         next_left: maxc/2 - 13,
         next_right: maxc/2 + 14,
         enemy: vec![],
-        bullets: vec![]
+        bullets: vec![],
+        score: 0,
+        fuel: 20,
+        timer: 0
     };
 
     loop {
