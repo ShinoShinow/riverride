@@ -1,7 +1,7 @@
 use std::{ io::{ stdout, Stdout, Write}, thread::sleep, time::Duration, vec};
 use crossterm::{cursor::{Hide, MoveTo, Show}, event::{poll, read, Event, KeyCode,}, style::Print, terminal::{disable_raw_mode, enable_raw_mode, Clear}, ExecutableCommand, QueueableCommand};
 use rand::{ thread_rng, Rng};
-
+// structs ************
 struct Enemy {
     line: u16,
     cols: u16
@@ -11,6 +11,11 @@ struct Bullet {
     l: u16,
     c: u16,
     range: u16
+}
+
+struct FuelDrop {
+    l: u16,
+    c: u16
 }
 
 enum PlayerStatus {
@@ -24,6 +29,7 @@ struct World {
     maxc: u16,
     maxl: u16,
     map: Vec<(u16 , u16)>,
+    fueldrop: Vec<FuelDrop>,
     status: PlayerStatus,
     next_right: u16,
     next_left: u16,
@@ -31,8 +37,10 @@ struct World {
     bullets: Vec<Bullet>,
     score: u16,
     fuel: u16,
-    timer: u8
+    timer: u8,
 }
+
+// draw *************
 
 fn draw(sc: &mut Stdout,world: &mut World) -> std::io::Result<()> {
     sc.queue(Clear(crossterm::terminal::ClearType::All))?;
@@ -68,6 +76,13 @@ fn draw(sc: &mut Stdout,world: &mut World) -> std::io::Result<()> {
     }
     sc.flush().unwrap();
 
+    // draw fueldrops
+    for i in &world.fueldrop {
+        sc.queue(MoveTo(i.c,i.l))?;
+        sc.queue(Print('F'))?;
+        sc.flush()?;
+    }
+
     //draw bullet
     if world.bullets.len() > 0 {
         sc.queue(MoveTo(world.bullets[0].c,world.bullets[0].l + 1))?;
@@ -79,6 +94,9 @@ fn draw(sc: &mut Stdout,world: &mut World) -> std::io::Result<()> {
 
     Ok(())
 }
+
+//physics ***********
+
 fn physics(mut world: World) -> std::io::Result<World> {
     //check if player die
     if world.player_c <= world.map[world.player_l as usize].0 {
@@ -185,8 +203,45 @@ fn physics(mut world: World) -> std::io::Result<World> {
         world.timer = 0;
     }
     world.timer += 1;
+
+    // init fuel drop
+    if rng.gen_range(1 ..= 100) <= 5 {
+        let fuelint_c = rng.gen_range(world.map[0].0 + 1 .. world.map[0].1 - 1); 
+        let temp = FuelDrop {
+            l: 0,
+            c: fuelint_c
+        };
+        world.fueldrop.push(temp);
+    }
+
+    // check fuels hit somthing
+    if world.fueldrop.len() >= 1 {
+        for i in 0..(world.fueldrop.len() -1) {
+            if world.player_l == world.fueldrop[i].l && world.player_c == world.fueldrop[i].c {
+                world.fuel += 5;
+                world.fueldrop.remove(i);
+            }
+        }
+    }
+
+    //shift fueldrops
+    for i in &mut world.fueldrop {
+        i.l += 1;
+    }
+
+    //delete fueldrops
+    if world.fueldrop.len() >= 1 {
+        for i in 0..(world.fueldrop.len() -1) {
+            if world.fueldrop[i].l > (world.maxl - 1) {
+                world.fueldrop.remove(i);
+            }
+        }
+    } 
+
     Ok(world)
 }
+
+//init *********
 
 fn main() -> std::io::Result<()> {
 
@@ -208,11 +263,12 @@ fn main() -> std::io::Result<()> {
         next_right: maxc/2 + 14,
         enemy: vec![],
         bullets: vec![],
+        fueldrop: vec![],
         score: 0,
         fuel: 20,
         timer: 0
     };
-
+    // loop *********
     loop {
         if poll(Duration::from_millis(10))? {
             let readr = read().unwrap();
